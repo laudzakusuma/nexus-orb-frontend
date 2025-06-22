@@ -1,13 +1,12 @@
-// src/App.tsx (Versi Final & Kompleks)
+// src/App.tsx (Versi FINAL - Full Stack Terintegrasi)
 
-import { useState, useEffect, useRef} from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { ethers } from 'ethers';
 import { Mesh, Color } from 'three';
 
-// --- KONFIGURASI SMART CONTRACT (GANTI DENGAN MILIK ANDA) ---
 const contractAddress = "0x5F3b8A1a638De722be1C521456b1915A2871e0A3";
 const contractABI = [
   {
@@ -485,8 +484,8 @@ interface OrbData {
   color: Color;
 }
 
-// --- Komponen HUD (Heads-Up Display) ---
-function InfoUI({ account, connectWallet, handleMint, isMinting, orbCount }: { account: string | null, orbCount: number, isMinting: boolean, handleMint: () => void, connectWallet: () => void }) {
+// --- Komponen UI (Info, Tombol, dll) ---
+function InfoUI({ account, orbCount, isMinting, connectWallet, handleMint }: any) {
   return (
     <div style={{ position: 'absolute', top: 20, left: 20, color: 'white', zIndex: 100, fontFamily: 'monospace' }}>
       <h1>Nexus Orb Genesis</h1>
@@ -495,12 +494,12 @@ function InfoUI({ account, connectWallet, handleMint, isMinting, orbCount }: { a
       {account ? (
         <div>
           <p>Connected: {`${account.substring(0, 6)}...${account.substring(account.length - 4)}`}</p>
-          <button onClick={handleMint} disabled={isMinting} style={{ padding: 10, fontSize: 16 }}>
+          <button onClick={handleMint} disabled={isMinting} style={{ padding: 10, fontSize: 16, cursor: 'pointer' }}>
             {isMinting ? 'Minting...' : 'Mint New Orb'}
           </button>
         </div>
       ) : (
-        <button onClick={connectWallet} style={{ padding: 10, fontSize: 16 }}>
+        <button onClick={connectWallet} style={{ padding: 10, fontSize: 16, cursor: 'pointer' }}>
           Connect Wallet
         </button>
       )}
@@ -511,29 +510,21 @@ function InfoUI({ account, connectWallet, handleMint, isMinting, orbCount }: { a
 // --- Komponen 3D untuk satu Orb ---
 function Orb({ orbitRadius, speed, color }: OrbData) {
   const meshRef = useRef<Mesh>(null!);
-
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
-    // Gerakan orbital menggunakan trigonometri
     meshRef.current.position.x = Math.cos(time * speed) * orbitRadius;
     meshRef.current.position.z = Math.sin(time * speed) * orbitRadius;
-    // Rotasi pada sumbunya sendiri
     meshRef.current.rotation.y += 0.01;
   });
 
   return (
     <mesh ref={meshRef}>
       <sphereGeometry args={[0.5, 32, 32]} />
-      <meshStandardMaterial 
-        color={color}
-        metalness={0.8}
-        roughness={0.1}
-        emissive={color}
-        emissiveIntensity={2}
-      />
+      <meshStandardMaterial color={color} metalness={0.8} roughness={0.1} emissive={color} emissiveIntensity={2}/>
     </mesh>
   );
 }
+
 
 // --- Komponen App Utama ---
 export default function App() {
@@ -547,41 +538,29 @@ export default function App() {
     for (let i = 0; i < count; i++) {
       newOrbs.push({
         id: i,
-        orbitRadius: 4 + i * 1.5, // Setiap orb baru punya orbit lebih lebar
-        speed: 0.1 + Math.random() * 0.2, // Kecepatan acak
-        color: new Color(`hsl(${Math.random() * 360}, 100%, 50%)`), // Warna acak
+        orbitRadius: 4 + i * 1.5,
+        speed: 0.1 + Math.random() * 0.1,
+        color: new Color(`hsl(${180 + i * 25}, 100%, 50%)`),
       });
     }
     setOrbs(newOrbs);
   };
   
-  // Fungsi untuk mengambil data total supply dari blockchain
- // Ganti fungsi fetchData yang lama dengan yang ini:
+  // Fungsi untuk mengambil data dari provider read-only (tidak perlu dompet)
   const fetchData = async () => {
+    if (!contractAddress || !contractABI.length) return;
     try {
-      // Kita tentukan tipe provider di awal
-      let provider;
-
-      // Cek apakah MetaMask (window.ethereum) ada di browser
-      if (window.ethereum) {
-        // Jika ada dompet, gunakan sebagai provider utama
-        provider = new ethers.BrowserProvider(window.ethereum);
-      } else {
-        // Jika tidak ada dompet, buat koneksi "hanya-baca" langsung ke node
-        // Ini bagus untuk menampilkan data bahkan sebelum pengguna menghubungkan dompet
-        provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
-      }
-
-      // Sisa kodenya tetap sama
+      const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545/");
       const contract = new ethers.Contract(contractAddress, contractABI, provider);
       const total = await contract.getTotalMinted();
+      console.log("Total Orbs from chain:", total.toString());
       generateOrbs(Number(total));
-
     } catch (error) {
       console.error("Gagal mengambil data:", error);
     }
   };
 
+  // Mengambil data saat komponen pertama kali dimuat
   useEffect(() => {
     fetchData();
   }, []);
@@ -608,10 +587,12 @@ export default function App() {
         const contract = new ethers.Contract(contractAddress, contractABI, signer);
         
         const tx = await contract.safeMint(account);
+        console.log("Transaksi minting dikirim...", tx.hash);
+
         await tx.wait();
+        console.log("Transaksi selesai!");
         
-        // Ambil ulang data setelah minting berhasil untuk me-refresh scene
-        await fetchData();
+        await fetchData(); // Ambil ulang data untuk me-refresh scene
       } catch (error) {
         console.error("Minting gagal:", error);
       } finally {
@@ -623,21 +604,18 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
       <InfoUI account={account} orbCount={orbs.length} isMinting={isMinting} handleMint={handleMint} connectWallet={connectWallet} />
-      <Canvas camera={{ position: [0, 20, 30], fov: 60 }}>
-        {/* Kontrol, Latar Belakang, dan Cahaya */}
+      <Canvas camera={{ position: [0, 20, 25], fov: 60 }}>
         <OrbitControls />
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-        <ambientLight intensity={0.2} />
-        <pointLight position={[0, 0, 0]} intensity={2} color="white" />
+        <ambientLight intensity={0.1} />
+        <pointLight position={[0, 0, 0]} intensity={2.5} color="white" />
 
-        {/* Render semua Orb yang ada di state */}
         {orbs.map(orb => (
           <Orb key={orb.id} {...orb} />
         ))}
 
-        {/* Efek Visual Post-Processing */}
         <EffectComposer>
-          <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} intensity={1.5} />
+          <Bloom luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={2} />
         </EffectComposer>
       </Canvas>
     </div>
