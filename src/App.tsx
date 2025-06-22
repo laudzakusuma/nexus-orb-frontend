@@ -1,53 +1,72 @@
 // src/App.tsx
 
-import { useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Mesh } from 'three';
+import axios from 'axios'; // Impor axios
 
-// Komponen ini sekarang adalah Orb kita yang lebih canggih
+// --- Komponen Baru untuk Menampilkan Info ---
+function Info({ totalOrbs }: { totalOrbs: number }) {
+  return (
+    <div style={{ position: 'absolute', top: 20, left: 20, color: 'white', fontSize: '24px', fontFamily: 'monospace' }}>
+      <p>Nexus Orb Genesis</p>
+      <p>Total Orbs Minted: {totalOrbs}</p>
+    </div>
+  );
+}
+
+// Komponen Orb kita tetap sama
 function NexusOrb() {
   const meshRef = useRef<Mesh>(null!);
-
-  // useFrame untuk animasi yang berkelanjutan
-  // 'state.clock.getElapsedTime()' akan memberi kita waktu yang terus berjalan sejak aplikasi dimulai
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
-    
-    // Rotasi seperti sebelumnya
     meshRef.current.rotation.x += 0.005;
     meshRef.current.rotation.y += 0.005;
-
-    // Gerakan naik-turun yang halus menggunakan fungsi sinus
     meshRef.current.position.y = Math.sin(time) * 0.3; 
   });
-
   return (
     <mesh ref={meshRef}>
-      {/* Ganti bentuknya menjadi bola (Sphere) dengan detail yang cukup */}
       <sphereGeometry args={[1.5, 32, 32]} />
-      
-      {/* Ganti materialnya menjadi lebih menarik */}
       <meshStandardMaterial 
-        color="#0077ff"    // Warna dasar biru
-        metalness={0.7}     // Terlihat lebih seperti logam
-        roughness={0.2}     // Permukaan yang sedikit kasar
-        emissive="#00aaff"  // Warna cahaya yang dipancarkan dari objek itu sendiri
-        emissiveIntensity={0.5} // Intensitas cahaya yang dipancarkan
+        color="#0077ff" metalness={0.7} roughness={0.2}
+        emissive="#00aaff" emissiveIntensity={0.5}
       />
     </mesh>
   );
 }
 
-// Komponen App utama
+// Komponen App utama kita sekarang punya state dan logika data
 export default function App() {
+  // useState untuk menyimpan jumlah total Orb yang kita dapatkan dari backend
+  const [totalOrbs, setTotalOrbs] = useState<number>(0);
+
+  // useEffect akan berjalan satu kali saat komponen pertama kali dirender
+  useEffect(() => {
+    // Fungsi async untuk mengambil data dari API backend kita
+    const fetchData = async () => {
+      try {
+        console.log("Mencoba mengambil data dari backend...");
+        const response = await axios.get('http://localhost:3001/api/total-orbs');
+        // Jika berhasil, perbarui state kita dengan data tersebut
+        setTotalOrbs(Number(response.data.totalOrbs));
+        console.log("Data berhasil diambil:", response.data);
+      } catch (error) {
+        console.error("Gagal mengambil data dari backend:", error);
+      }
+    };
+
+    fetchData(); // Panggil fungsi tersebut
+  }, []); // Array dependensi kosong berarti ini hanya berjalan sekali
+
   return (
-    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-      {/* Cahaya untuk menerangi objek dari berbagai arah */}
-      <ambientLight intensity={1} />
-      <pointLight position={[10, 10, 10]} intensity={1.5} />
-      
-      {/* Menempatkan Nexus Orb kita di dalam adegan */}
-      <NexusOrb />
-    </Canvas>
+    // Kita menggunakan <> (React Fragment) untuk membungkus Canvas dan Info
+    <>
+      <Info totalOrbs={totalOrbs} />
+      <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+        <ambientLight intensity={1} />
+        <pointLight position={[10, 10, 10]} intensity={1.5} />
+        <NexusOrb />
+      </Canvas>
+    </>
   );
 }
