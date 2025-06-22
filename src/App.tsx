@@ -1,11 +1,10 @@
 // src/App.tsx (Versi Final & Kompleks)
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef} from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { ethers } from 'ethers';
-import axios from 'axios';
 import { Mesh, Color } from 'three';
 
 // --- KONFIGURASI SMART CONTRACT (GANTI DENGAN MILIK ANDA) ---
